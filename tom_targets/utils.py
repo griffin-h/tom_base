@@ -5,7 +5,7 @@ import csv
 from .models import Target, TargetExtra, TargetName
 from io import StringIO
 from django.db.models import ExpressionWrapper, FloatField
-from django.db.models.functions.math import ACos, Cos, Radians, Pi, Sin
+from django.db.models.functions.math import ACos, Cos, Radians, Pi, Sin, Greatest, Least
 from math import radians
 
 
@@ -146,11 +146,27 @@ def cone_search_filter(queryset, ra, dec, radius):
         dec__gte=dec - double_radius, dec__lte=dec + double_radius
     )
 
-    separation = ExpressionWrapper(
-            180 * ACos(
-                (Sin(radians(dec)) * Sin(Radians('dec'))) +
-                (Cos(radians(dec)) * Cos(Radians('dec')) * Cos(radians(ra) - Radians('ra')))
-            ) / Pi(), FloatField()
+
+    # define the input to ACos separately
+    arccos_input = (
+        (Sin(radians(dec)) * Sin(Radians('dec'))) +
+        (Cos(radians(dec)) * Cos(Radians('dec')) * Cos(radians(ra) - Radians('ra')))
+    )
+
+    # clamp this arccos_input to prevent floating point errors making it <-1 or >1
+    # (since arccos is only defined >-1 and < 1)
+    clamped_arccos_input = Greatest(
+        Value(-1.0),
+        Least(
+            arccos_input,
+            Value(1.0)
         )
+    )
+
+    # then compute the separation
+    separation = ExpressionWrapper(
+        180 * ACos(clamped_arccos_input) / Pi(),
+        FloatField()
+    )
 
     return queryset.annotate(separation=separation).filter(separation__lte=radius)
