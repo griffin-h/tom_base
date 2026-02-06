@@ -4,7 +4,7 @@ from django.contrib.auth.models import Group
 import csv
 from .models import Target, TargetExtra, TargetName
 from io import StringIO
-from django.db.models import ExpressionWrapper, FloatField
+from django.db.models import ExpressionWrapper, FloatField, Value
 from django.db.models.functions.math import ACos, Cos, Radians, Pi, Sin
 from django.db.models.functions import Greatest, Least
 from math import radians
