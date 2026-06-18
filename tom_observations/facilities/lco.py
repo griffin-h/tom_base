@@ -890,8 +890,8 @@ class LCOPhotometricSequenceForm(LCOOldStyleObservationForm):
         """
         cleaned_data = super().clean()
         start = cleaned_data.get('start')
-        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=cleaned_data['cadence_frequency']),
-                                                '%Y-%m-%dT%H:%M:%S')
+        window_length = min(cleaned_data['cadence_frequency'], 24.)
+        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=window_length),'%Y-%m-%dT%H:%M:%S')
 
         return cleaned_data
 
@@ -1059,15 +1059,15 @@ class LCOSpectroscopicSequenceForm(LCOOldStyleObservationForm):
             - Hardcodes instrument type as "2M0-FLOYDS-SCICAM" because it's the only instrument this form uses
             - Adds a start time of "right now", as the spectroscopic sequence form does not allow for specification
               of a start time.
-            - Adds an end time that corresponds with the cadence frequency
+            - Adds an end time that corresponds with the cadence frequency, up to a maximum of 24 hours
             - Adds the cadence strategy to the form if "repeat" was the selected "cadence_type". If "once" was
               selected, the observation is submitted as a single observation.
         """
         cleaned_data = super().clean()
         cleaned_data['instrument_type'] = '2M0-FLOYDS-SCICAM'  # SNEx only submits spectra to FLOYDS
         start = cleaned_data.get('start')
-        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=cleaned_data['cadence_frequency']),
-                                                '%Y-%m-%dT%H:%M:%S')
+        window_length = min(cleaned_data['cadence_frequency'], 24.)
+        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=window_length), '%Y-%m-%dT%H:%M:%S')
 
         return cleaned_data
 
