@@ -910,7 +910,7 @@ class LCOPhotometricSequenceForm(LCOOldStyleObservationForm):
             (f['code'], f['name']) for ins in self._get_instruments().values() for f in
             ins['optical_elements'].get('filters', [])
             if f['code'] in LCOPhotometricSequenceForm.valid_filters]),
-            key=lambda filter_tuple: filter_tuple[1])
+            key=lambda filter_tuple: LCOPhotometricSequenceForm.valid_filters.index(filter_tuple[0]))
 
     def cadence_layout(self):
         return Layout(
