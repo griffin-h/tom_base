@@ -356,6 +356,34 @@ class LCOOldStyleObservationForm(OCSBaseObservationForm):
         if isinstance(self, CadenceForm):
             self.helper.layout.insert(2, self.cadence_layout())
 
+        # use the old DateTimeField to ensure the form can be initialized from stored parameters
+        self.fields['start'] = forms.DateTimeField()
+        self.fields['end'] = forms.DateTimeField()
+
+    def clean_start(self):
+        start = self.cleaned_data.get('start')
+        if isinstance(start, datetime):
+            start = start.isoformat()
+        return start
+
+    def clean_end(self):
+        end = self.cleaned_data.get('end')
+        if isinstance(end, datetime):
+            end = end.isoformat()
+        return end
+
+    def clean(self):
+        """
+        Space 1-day windows at the cadence frequency. If cadence is <1 day, put the windows back to back.
+        This cadence strategy is taken from the Supernova Exchange.
+        """
+        if not self.cleaned_data.get('end') and self.cleaned_data.get('start'):
+            start = parse(self.cleaned_data['start'])
+            window_length = min(self.cleaned_data['cadence_frequency'], 24.)
+            self.cleaned_data['end'] = (start + timedelta(hours=window_length)).isoformat()
+
+        return self.cleaned_data
+
     def layout(self):
         return Div(
             Div(
@@ -868,33 +896,6 @@ class LCOPhotometricSequenceForm(LCOOldStyleObservationForm):
                 ]
         return initial
 
-    def clean_start(self):
-        """
-        Unless included in the submission, set the start time to now.
-        """
-        start = self.cleaned_data.get('start')
-        if not start:  # Start is in cleaned_data as an empty string if it was not submitted, so check falsiness
-            start = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')
-        return start
-
-    def clean_end(self):
-        """
-        Override clean_end in order to avoid the superclass attempting to date-parse an empty string.
-        """
-        return self.cleaned_data.get('end')
-
-    def clean(self):
-        """
-        This clean method does the following:
-            - Adds an end time that corresponds with the cadence frequency
-        """
-        cleaned_data = super().clean()
-        start = cleaned_data.get('start')
-        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=cleaned_data['cadence_frequency']),
-                                                '%Y-%m-%dT%H:%M:%S')
-
-        return cleaned_data
-
     def instrument_choices(self):
         """
         This method returns only the instrument choices available in the current SNEx photometric sequence form.
@@ -1037,39 +1038,6 @@ class LCOSpectroscopicSequenceForm(LCOOldStyleObservationForm):
         if site != 'any':
             location['site'] = site
         return location
-
-    def clean_start(self):
-        """
-        Unless included in the submission, set the start time to now.
-        """
-        start = self.cleaned_data.get('start')
-        if not start:  # Start is in cleaned_data as an empty string if it was not submitted, so check falsiness
-            start = datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')
-        return start
-
-    def clean_end(self):
-        """
-        Override clean_end in order to avoid the superclass attempting to date-parse an empty string.
-        """
-        return self.cleaned_data.get('end')
-
-    def clean(self):
-        """
-        This clean method does the following:
-            - Hardcodes instrument type as "2M0-FLOYDS-SCICAM" because it's the only instrument this form uses
-            - Adds a start time of "right now", as the spectroscopic sequence form does not allow for specification
-              of a start time.
-            - Adds an end time that corresponds with the cadence frequency
-            - Adds the cadence strategy to the form if "repeat" was the selected "cadence_type". If "once" was
-              selected, the observation is submitted as a single observation.
-        """
-        cleaned_data = super().clean()
-        cleaned_data['instrument_type'] = '2M0-FLOYDS-SCICAM'  # SNEx only submits spectra to FLOYDS
-        start = cleaned_data.get('start')
-        cleaned_data['end'] = datetime.strftime(parse(start) + timedelta(hours=cleaned_data['cadence_frequency']),
-                                                '%Y-%m-%dT%H:%M:%S')
-
-        return cleaned_data
 
     def instrument_choices(self):
         # SNEx only uses the Spectroscopic Sequence Form with FLOYDS
